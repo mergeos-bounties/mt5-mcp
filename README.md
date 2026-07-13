@@ -74,8 +74,8 @@ mt5-mcp serve
 | `mt5_account` | Balance, equity, margin, trade mode |
 | `mt5_symbols` | Symbol list |
 | `mt5_quote` | Bid/ask / last |
-| `mt5_positions` | Open positions |
-| `mt5_orders` | Pending orders |
+| `mt5_positions` | **Open positions** (filled market orders) |
+| `mt5_orders` | **Pending orders** (limit/stop, not yet filled) |
 | `mt5_order_send` | Market/pending |
 | `mt5_position_close` | Close position by ticket |
 | `mt5_history_deals` | Deal history |
