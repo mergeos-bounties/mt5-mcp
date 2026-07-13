@@ -118,6 +118,18 @@ Set env (never commit secrets):
 
 Without a working bridge, **live** mode returns structured errors; demos stay on **mock**.
 
+
+---
+
+## Safety
+
+| Rule | Detail |
+| --- | --- |
+| **Mock-only env** | Copy `examples/env.mock.example` → `.env` and keep `MT5_MCP_MODE=mock` |
+| **No secrets in git** | Add `.env` to `.gitignore` — never commit live broker credentials |
+| **Max volume** | Set `MT5_MCP_MAX_VOLUME` to cap any single order in live mode |
+| **Symbol allowlist** | Restrict tradeable symbols via `MT5_MCP_SYMBOL_ALLOWLIST` (comma-sep) |
+
 ---
 
 ## Deal history
