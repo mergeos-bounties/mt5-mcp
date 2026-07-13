@@ -79,6 +79,7 @@ mt5-mcp serve
 | `mt5_order_send` | Market/pending |
 | `mt5_position_close` | Close position by ticket |
 | `mt5_history_deals` | Deal history |
+| `mt5://account` (resource) | Account + positions snapshot |
 
 ---
 
