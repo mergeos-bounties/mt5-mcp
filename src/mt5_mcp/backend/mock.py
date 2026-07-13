@@ -298,5 +298,6 @@ class MockBackend:
         return {"ok": True, "cancelled": o}
 
     def history_deals(self, limit: int = 20) -> list[dict[str, Any]]:
+        """Return deal history with profit breakdown (commission, swap, profit)."""
         n = max(1, min(int(limit), 100))
         return [deepcopy(d) for d in self._deals[:n]]

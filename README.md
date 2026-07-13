@@ -120,6 +120,25 @@ Without a working bridge, **live** mode returns structured errors; demos stay on
 
 ---
 
+## Deal history
+
+
+#### Deal history fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `ticket` | int | Deal ID |
+| `time` | str | Timestamp |
+| `symbol` | str | Instrument |
+| `type` | str | Deal type (buy/sell) |
+| `volume` | float | Lot size |
+| `price` | float | Execution price |
+| `commission` | float | Broker commission (mock) |
+| `swap` | float | Overnight swap (mock) |
+| `profit` | float | Net P&L (mock) |
+
+---
+
 ## Development
 
 ```powershell
