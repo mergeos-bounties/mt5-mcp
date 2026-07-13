@@ -26,3 +26,16 @@ def bridge_url() -> str | None:
 def bridge_file() -> str | None:
     v = (os.environ.get(f"{_PREFIX}_BRIDGE_FILE") or "").strip()
     return v or None
+
+
+def magic_number() -> int | None:
+    v = os.environ.get("MT5_MCP_MAGIC")
+    return int(v) if v else None
+
+def max_volume() -> float:
+    v = os.environ.get("MT5_MCP_MAX_VOLUME")
+    return float(v) if v else 100.0
+
+def symbol_allowlist() -> list[str] | None:
+    v = os.environ.get("MT5_MCP_SYMBOL_ALLOWLIST")
+    return [s.strip() for s in v.split(",") if s.strip()] if v else None
