@@ -110,6 +110,9 @@ Set env (never commit secrets):
 | Variable | Meaning |
 | --- | --- |
 | `MT5_MCP_MODE` | `mock` or `live` |
+| `MT5_MCP_MAGIC` | Optional magic number for live orders | `202401` |
+| `MT5_MCP_MAX_VOLUME` | Max order volume cap | `10.0` |
+| `MT5_MCP_SYMBOL_ALLOWLIST` | Comma-sep allowlisted symbols | `EURUSD,GBPUSD` |
 | `MT5_MCP_BRIDGE_URL` | Optional HTTP bridge base URL |
 | `MT5_MCP_BRIDGE_FILE` | Optional request/response JSON file path |
 
