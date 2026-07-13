@@ -47,6 +47,23 @@ def doctor_cmd() -> None:
     rprint(info)
 
 
+@app.command("status")
+def status_cmd() -> None:
+    b = get_backend()
+    acct = b.account()
+    info = {
+        "mode": get_mode(),
+        "balance": acct.get("balance", 0),
+        "equity": acct.get("equity", 0),
+        "positions": acct.get("positions", 0),
+        "pending_orders": acct.get("pending_orders", 0),
+        "login": acct.get("login"),
+        "server": acct.get("server"),
+        "currency": acct.get("currency"),
+    }
+    rprint(info)
+
+
 @app.command("demo")
 def demo_cmd() -> None:
     """Offline smoke: seed mock account and trade a tiny position."""

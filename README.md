@@ -52,6 +52,7 @@ Mock mode needs **no** MetaTrader install.
 | Command | Purpose |
 | --- | --- |
 | `mt5-mcp version` | Version + mode |
+| `mt5-mcp status` | Mode, balance, equity, positions, orders |
 | `mt5-mcp demo` | Offline smoke of core backend APIs |
 | `mt5-mcp doctor` | Backend health |
 | `mt5-mcp serve` | MCP server over **stdio** |
