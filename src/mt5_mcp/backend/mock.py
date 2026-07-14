@@ -80,7 +80,36 @@ class MockBackend:
         }
         self._positions: dict[int, dict[str, Any]] = {}
         self._orders: dict[int, dict[str, Any]] = {}
+        now = time.time()
         self._deals: list[dict[str, Any]] = [
+            {
+                "ticket": 200003,
+                "position_id": 200003,
+                "symbol": "XAUUSD",
+                "side": "sell",
+                "volume": 0.05,
+                "price": 2326.40,
+                "commission": -0.35,
+                "swap": 0.0,
+                "profit": 18.50,
+                "entry": "out",
+                "time": now - 900,
+                "comment": "demo-history-3",
+            },
+            {
+                "ticket": 200002,
+                "position_id": 200002,
+                "symbol": "USDJPY",
+                "side": "buy",
+                "volume": 0.10,
+                "price": 149.210,
+                "commission": -0.25,
+                "swap": -0.10,
+                "profit": -6.40,
+                "entry": "out",
+                "time": now - 1800,
+                "comment": "demo-history-2",
+            },
             {
                 "ticket": 200001,
                 "position_id": 200001,
@@ -88,11 +117,13 @@ class MockBackend:
                 "side": "buy",
                 "volume": 0.20,
                 "price": 1.08100,
+                "commission": -0.50,
+                "swap": 0.05,
                 "profit": 42.0,
                 "entry": "out",
-                "time": time.time() - 3600,
-                "comment": "demo-deal",
-            }
+                "time": now - 3600,
+                "comment": "demo-history-1",
+            },
         ]
         self._recalc()
         return {
@@ -230,6 +261,8 @@ class MockBackend:
                 "side": side_l,
                 "volume": float(volume),
                 "price": open_price,
+                "commission": 0.0,
+                "swap": 0.0,
                 "profit": 0.0,
                 "entry": "in",
                 "time": time.time(),
@@ -277,6 +310,8 @@ class MockBackend:
             "side": "sell" if p["side"] == "buy" else "buy",
             "volume": close_vol,
             "price": close_price,
+            "commission": 0.0,
+            "swap": 0.0,
             "profit": profit,
             "entry": "out",
             "time": time.time(),
@@ -297,7 +332,9 @@ class MockBackend:
             return {"ok": False, "error": f"pending order {ticket} not found"}
         return {"ok": True, "cancelled": o}
 
-    def history_deals(self, limit: int = 20) -> list[dict[str, Any]]:
-        """Return deal history with profit breakdown (commission, swap, profit)."""
+    def history_deals(self, limit: int = 20, offset: int = 0) -> list[dict[str, Any]]:
+        """Return a paginated deal history with profit breakdown."""
         n = max(1, min(int(limit), 100))
-        return [deepcopy(d) for d in self._deals[:n]]
+        start = max(0, int(offset))
+        end = start + n
+        return [deepcopy(d) for d in self._deals[start:end]]

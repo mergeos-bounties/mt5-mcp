@@ -136,7 +136,10 @@ def call_cmd(
             float(kv["volume"]) if "volume" in kv else None,
         ),
         "mt5_order_cancel": lambda: b.order_cancel(int(kv.get("ticket", 0))),
-        "mt5_history_deals": lambda: b.history_deals(int(kv.get("limit", 20))),
+        "mt5_history_deals": lambda: b.history_deals(
+            int(kv.get("limit", 20)),
+            int(kv.get("offset", 0)),
+        ),
     }
     if name not in dispatch:
         raise typer.BadParameter(f"unknown tool {name}")

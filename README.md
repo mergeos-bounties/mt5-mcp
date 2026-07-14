@@ -158,7 +158,7 @@ mt5-mcp serve
 | `mt5_orders` | **Pending orders** (limit/stop, not yet filled) |
 | `mt5_order_send` | Market/pending |
 | `mt5_position_close` | Close position by ticket |
-| `mt5_history_deals` | Deal history |
+| `mt5_history_deals` | Paginated deal history (`limit`, `offset`) |
 | `mt5://account` (resource) | Account + positions snapshot |
 
 ---
@@ -211,9 +211,14 @@ Without a working bridge, **live** mode returns structured errors; demos stay on
 | **Symbol allowlist** | Restrict tradeable symbols via `MT5_MCP_SYMBOL_ALLOWLIST` (comma-sep) |
 
 ---
-
 ## Deal history
 
+The mock backend ships with multiple closed demo deals and supports simple offset pagination:
+
+```powershell
+mt5-mcp call history_deals limit=2 offset=0
+mt5-mcp call history_deals limit=2 offset=2
+```
 
 #### Deal history fields
 

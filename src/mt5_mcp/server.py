@@ -105,9 +105,9 @@ def mt5_order_cancel(ticket: int) -> str:
 
 
 @mcp.tool()
-def mt5_history_deals(limit: int = 20) -> str:
-    """Recent deal history."""
-    return _j(get_backend().history_deals(limit=limit))
+def mt5_history_deals(limit: int = 20, offset: int = 0) -> str:
+    """Paginated recent deal history."""
+    return _j(get_backend().history_deals(limit=limit, offset=offset))
 
 
 def run_stdio() -> None:

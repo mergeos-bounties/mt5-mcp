@@ -110,5 +110,5 @@ class LiveBackend:
     def order_cancel(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         return self._unavailable("order_cancel")
 
-    def history_deals(self, limit: int = 20) -> list[dict[str, Any]]:
+    def history_deals(self, limit: int = 20, offset: int = 0) -> list[dict[str, Any]]:
         return []
