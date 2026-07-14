@@ -9,6 +9,85 @@
 
 ---
 
+## Install (one command)
+
+### Grok — recommended
+
+```bash
+pip install "git+https://github.com/mergeos-bounties/mt5-mcp.git" && grok plugin install mergeos-bounties/mt5-mcp --trust
+```
+
+This installs the **Python CLI** (`mt5-mcp`) and the **Grok plugin** (skill + MCP server from `.mcp.json`).
+
+Check:
+
+```bash
+mt5-mcp version
+mt5-mcp doctor
+mt5-mcp demo
+grok plugin list
+grok mcp list
+```
+
+Local clone:
+
+```bash
+git clone https://github.com/mergeos-bounties/mt5-mcp.git
+cd mt5-mcp
+pip install -e ".[dev]"
+grok plugin install . --trust
+```
+
+### Other agents (stdio MCP)
+
+After `pip install "git+https://github.com/mergeos-bounties/mt5-mcp.git"`, point any MCP host at:
+
+| Field | Value |
+| --- | --- |
+| command | `mt5-mcp` |
+| args | `["serve"]` |
+| env | `MT5_MCP_MODE=mock` |
+
+**Claude Desktop** — merge [examples/claude_desktop_config.json](examples/claude_desktop_config.json) into Claude MCP config.
+
+**Cursor** — merge [examples/cursor_mcp.json](examples/cursor_mcp.json).
+
+**Grok config.toml** (manual, without plugin):
+
+```toml
+[mcp_servers.mt5_mcp]
+command = "mt5-mcp"
+args = ["serve"]
+env = { MT5_MCP_MODE = "mock" }
+enabled = true
+```
+
+**One-liner via Grok CLI:**
+
+```bash
+pip install "git+https://github.com/mergeos-bounties/mt5-mcp.git"
+grok mcp add mt5-mcp -- mt5-mcp serve
+```
+
+
+## Supported AI agents / hosts
+
+| Host | Support | Install |
+| --- | --- | --- |
+| **Grok** (CLI / TUI / Build) | **Yes** | `grok plugin install mergeos-bounties/mt5-mcp --trust` then `pip install "git+https://github.com/mergeos-bounties/mt5-mcp.git"` |
+| **Claude Desktop** | **Yes** | Copy [examples/claude_desktop_config.json](examples/claude_desktop_config.json) into Claude MCP settings |
+| **Cursor** | **Yes** | Merge [examples/cursor_mcp.json](examples/cursor_mcp.json) into Cursor MCP config |
+| **Claude Code** | **Yes** | stdio MCP: same `command`/`args` as Claude Desktop / Grok |
+| **VS Code** (MCP / Continue / Cline) | **Yes** | Generic stdio server config pointing at `mt5-mcp serve` |
+| **Windsurf / Cascade** | **Yes** | stdio MCP entry with `mt5-mcp` + `serve` |
+| **Codex CLI** | **Yes** (stdio) | Register MCP server command `mt5-mcp serve` in Codex MCP settings |
+| **ChatGPT Desktop** | **Partial** | Only if host supports custom MCP stdio servers |
+| **Gemini CLI** | **Partial** | Only if MCP stdio plugins are enabled |
+
+All packages speak **MCP over stdio** (`mt5-mcp serve`). Default mode is **mock** (offline, no simulator/terminal/GIMP required).
+
+
+---
 ## Modes
 
 | Mode | When | Behavior |

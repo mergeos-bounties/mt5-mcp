@@ -1,0 +1,8 @@
+# Paste into ~/.grok/config.toml or project .grok/config.toml
+# Requires: pip install "git+https://github.com/mergeos-bounties/mt5-mcp.git"
+
+[mcp_servers.mt5_mcp]
+command = "mt5-mcp"
+args = ["serve"]
+env = { MT5_MCP_MODE = "mock" }
+enabled = true

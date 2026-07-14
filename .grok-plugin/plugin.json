@@ -1,0 +1,19 @@
+{
+  "name": "mt5-mcp",
+  "version": "0.1.0",
+  "description": "MetaTrader 5 positions/history (mock + live bridge). One-command install from GitHub for Grok + MCP hosts.",
+  "author": {
+    "name": "MergeOS / ThanhTrucSolutions",
+    "url": "https://github.com/mergeos-bounties"
+  },
+  "homepage": "https://github.com/mergeos-bounties/mt5-mcp",
+  "repository": "https://github.com/mergeos-bounties/mt5-mcp",
+  "license": "MIT",
+  "keywords": [
+    "mt5",
+    "metatrader",
+    "trading",
+    "mcp",
+    "mergeos"
+  ]
+}

@@ -2,8 +2,12 @@
   "mcpServers": {
     "mt5-mcp": {
       "command": "mt5-mcp",
-      "args": ["serve"],
-      "env": { "MT5_MCP_MODE": "mock" }
+      "args": [
+        "serve"
+      ],
+      "env": {
+        "MT5_MCP_MODE": "mock"
+      }
     }
   }
 }
