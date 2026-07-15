@@ -301,3 +301,48 @@ class MockBackend:
         """Return deal history with profit breakdown (commission, swap, profit)."""
         n = max(1, min(int(limit), 100))
         return [deepcopy(d) for d in self._deals[:n]]
+
+    def history_deals_paginated(self, limit: int = 20, offset: int = 0) -> dict[str, Any]:
+        """Paginated deal history with summary."""
+        total = len(self._deals)
+        n = max(1, min(int(limit), 100))
+        o = max(0, int(offset))
+        page = [deepcopy(d) for d in self._deals[o:o + n]]
+        total_profit = sum(d.get("profit", 0) for d in page)
+        return {
+            "ok": True,
+            "total": total,
+            "offset": o,
+            "limit": n,
+            "page_profit": round(total_profit, 2),
+            "deals": page,
+        }
+
+    def account_equity_curve(self) -> dict[str, Any]:
+        """Account metrics with equity curve time series."""
+        self._recalc()
+        now = time.time()
+        if not hasattr(self, '_equity_snapshots'):
+            self._equity_snapshots: list[dict[str, Any]] = []
+        self._equity_snapshots.append({
+            "time": now,
+            "balance": self._balance,
+            "equity": self._equity,
+            "margin": self._margin,
+        })
+        self._equity_snapshots = self._equity_snapshots[-30:]
+        return {
+            "ok": True,
+            "login": self._login,
+            "currency": self._currency,
+            "leverage": self._leverage,
+            "trade_mode": self._trade_mode,
+            "balance": self._balance,
+            "equity": self._equity,
+            "margin": self._margin,
+            "margin_free": round(self._equity - self._margin, 2),
+            "positions": len(self._positions),
+            "pending_orders": len(self._orders),
+            "floating_pnl": round(self._equity - self._balance, 2),
+            "equity_curve": deepcopy(self._equity_snapshots),
+        }

@@ -112,3 +112,9 @@ class LiveBackend:
 
     def history_deals(self, limit: int = 20) -> list[dict[str, Any]]:
         return []
+
+    def history_deals_paginated(self, limit: int = 20, offset: int = 0) -> dict[str, Any]:
+        return self._unavailable("history_deals_paginated")
+
+    def account_equity_curve(self) -> dict[str, Any]:
+        return self._unavailable("account_equity_curve")
