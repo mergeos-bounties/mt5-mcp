@@ -84,7 +84,7 @@ grok mcp add mt5-mcp -- mt5-mcp serve
 | **ChatGPT Desktop** | **Partial** | Only if host supports custom MCP stdio servers |
 | **Gemini CLI** | **Partial** | Only if MCP stdio plugins are enabled |
 
-All packages speak **MCP over stdio** (`mt5-mcp serve`). Default mode is **mock** (offline, no simulator/terminal/GIMP required).
+All packages speak **MCP over stdio** (`mt5-mcp serve`). Default mode is **mock** (offline, no simulator, terminal, or bridge required).
 
 
 ---
@@ -94,6 +94,29 @@ All packages speak **MCP over stdio** (`mt5-mcp serve`). Default mode is **mock*
 | --- | --- | --- |
 | **mock** (default) | Windows / CI / no terminal | Seeded demo account, FX/CFD symbols, orders, history |
 | **live** | Host has a bridge configured | Optional file/HTTP bridge (see env vars); fails closed if unavailable |
+
+---
+
+## Mock vs live setup
+
+Use **mock** mode first. It is the supported offline path for installs, demos, CI, and host
+connectivity checks:
+
+```bash
+MT5_MCP_MODE=mock mt5-mcp doctor
+MT5_MCP_MODE=mock mt5-mcp demo
+```
+
+Use **live** mode only on a machine prepared for broker access. A live setup needs at least one
+of these prerequisites:
+
+- `MT5_MCP_BRIDGE_URL` pointing to an HTTP bridge with a `/health` endpoint.
+- `MT5_MCP_BRIDGE_FILE` pointing to a local request/response bridge file.
+- The optional `MetaTrader5` Python package plus a running, logged-in MetaTrader 5 terminal.
+
+If those prerequisites are missing or unreachable, `mt5-mcp doctor` reports `connected: false`
+and live tools fail closed or return empty stub data. `mt5-mcp demo` always switches back to mock
+mode so it never exercises a live broker connection.
 
 ---
 
@@ -187,14 +210,14 @@ Also see `examples/cursor_mcp.json`.
 
 Set env (never commit secrets):
 
-| Variable | Meaning |
-| --- | --- |
-| `MT5_MCP_MODE` | `mock` or `live` |
-| `MT5_MCP_MAGIC` | Optional magic number for live orders | `202401` |
-| `MT5_MCP_MAX_VOLUME` | Max order volume cap | `10.0` |
-| `MT5_MCP_SYMBOL_ALLOWLIST` | Comma-sep allowlisted symbols | `EURUSD,GBPUSD` |
-| `MT5_MCP_BRIDGE_URL` | Optional HTTP bridge base URL |
-| `MT5_MCP_BRIDGE_FILE` | Optional request/response JSON file path |
+| Variable | Meaning | Default / example |
+| --- | --- | --- |
+| `MT5_MCP_MODE` | Backend mode: `mock` or `live` | `mock` |
+| `MT5_MCP_MAGIC` | Optional magic number passed to live bridge/order wiring | unset / `202401` |
+| `MT5_MCP_MAX_VOLUME` | Max live order volume cap if live order wiring is enabled | `100.0` when unset |
+| `MT5_MCP_SYMBOL_ALLOWLIST` | Optional comma-separated symbol allowlist | unset / `EURUSD,GBPUSD` |
+| `MT5_MCP_BRIDGE_URL` | Optional HTTP bridge base URL for live mode | unset / `http://127.0.0.1:8765` |
+| `MT5_MCP_BRIDGE_FILE` | Optional local request/response JSON bridge file path | unset |
 
 Without a working bridge, **live** mode returns structured errors; demos stay on **mock**.
 
