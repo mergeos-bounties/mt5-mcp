@@ -110,5 +110,23 @@ def mt5_history_deals(limit: int = 20) -> str:
     return _j(get_backend().history_deals(limit=limit))
 
 
+@mcp.tool()
+def mt5_history_deals_paginated(limit: int = 20, offset: int = 0) -> str:
+    """Paginated deal history with profit summary."""
+    return _j(get_backend().history_deals_paginated(limit=limit, offset=offset))
+
+
+@mcp.tool()
+def mt5_account_equity_curve() -> str:
+    """Account metrics with equity curve time series."""
+    return _j(get_backend().account_equity_curve())
+
+
+@mcp.tool()
+def mt5_positions_detailed() -> str:
+    """Open positions with detailed PnL fields (floating profit, current price, margin)."""
+    return _j(get_backend().positions())
+
+
 def run_stdio() -> None:
     mcp.run(transport="stdio")
