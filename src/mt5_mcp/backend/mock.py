@@ -88,9 +88,39 @@ class MockBackend:
                 "side": "buy",
                 "volume": 0.20,
                 "price": 1.08100,
+                "commission": 0.7,
+                "swap": -1.2,
                 "profit": 42.0,
                 "entry": "out",
                 "time": time.time() - 3600,
+                "comment": "demo-deal",
+            },
+            {
+                "ticket": 200002,
+                "position_id": 200002,
+                "symbol": "GBPUSD",
+                "side": "sell",
+                "volume": 0.10,
+                "price": 1.26800,
+                "commission": 0.5,
+                "swap": -0.8,
+                "profit": -15.5,
+                "entry": "out",
+                "time": time.time() - 7200,
+                "comment": "demo-deal",
+            },
+            {
+                "ticket": 200003,
+                "position_id": 200003,
+                "symbol": "USDJPY",
+                "side": "buy",
+                "volume": 0.05,
+                "price": 149.200,
+                "commission": 0.3,
+                "swap": 0.5,
+                "profit": 28.3,
+                "entry": "out",
+                "time": time.time() - 10800,
                 "comment": "demo-deal",
             }
         ]
@@ -301,6 +331,20 @@ class MockBackend:
         """Return deal history with profit breakdown (commission, swap, profit)."""
         n = max(1, min(int(limit), 100))
         return [deepcopy(d) for d in self._deals[:n]]
+
+    def symbol_spec(self, symbol: str) -> dict[str, Any]:
+        """Return trading constraints from mock specs: digits, lot_step, contract_size."""
+        sym = symbol.upper()
+        if sym not in self._symbols:
+            return {"ok": False, "error": f"unknown symbol {symbol}"}
+        s = self._symbols[sym]
+        return {
+            "ok": True,
+            "symbol": sym,
+            "digits": s.get("digits", 5),
+            "lot_step": 0.01,
+            "contract_size": s.get("trade_contract_size", 100000),
+        }
 
     def history_deals_paginated(self, limit: int = 20, offset: int = 0) -> dict[str, Any]:
         """Paginated deal history with summary."""

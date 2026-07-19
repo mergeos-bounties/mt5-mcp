@@ -117,6 +117,12 @@ def mt5_history_deals_paginated(limit: int = 20, offset: int = 0) -> str:
 
 
 @mcp.tool()
+def mt5_symbol_spec(symbol: str) -> str:
+    """Return trading constraints for a symbol (digits, lot_step, contract_size)."""
+    return _j(get_backend().symbol_spec(symbol))
+
+
+@mcp.tool()
 def mt5_account_equity_curve() -> str:
     """Account metrics with equity curve time series."""
     return _j(get_backend().account_equity_curve())

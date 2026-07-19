@@ -23,6 +23,7 @@ TOOL_NAMES = [
     "mt5_seed_demo",
     "mt5_account",
     "mt5_symbols",
+    "mt5_symbol_spec",
     "mt5_quote",
     "mt5_positions",
     "mt5_orders",
@@ -96,6 +97,13 @@ def tools_list() -> None:
     console.print(table)
 
 
+@app.command("symbol_spec")
+def symbol_spec_cmd(symbol: str = typer.Argument(..., help="Symbol e.g. EURUSD")) -> None:
+    """Return trading constraints for a symbol (digits, lot_step, contract_size)."""
+    b = get_backend()
+    rprint(b.symbol_spec(symbol))
+
+
 @app.command("call")
 def call_cmd(
     tool: str = typer.Argument(..., help="Short name e.g. account or mt5_account"),
@@ -118,6 +126,7 @@ def call_cmd(
         "mt5_seed_demo": b.seed_demo,
         "mt5_account": b.account,
         "mt5_symbols": b.symbols,
+        "mt5_symbol_spec": lambda: b.symbol_spec(str(kv.get("symbol", "EURUSD"))),
         "mt5_quote": lambda: b.quote(str(kv.get("symbol", "EURUSD"))),
         "mt5_positions": b.positions,
         "mt5_orders": b.orders,
