@@ -116,5 +116,9 @@ class LiveBackend:
     def history_deals_paginated(self, limit: int = 20, offset: int = 0) -> dict[str, Any]:
         return self._unavailable("history_deals_paginated")
 
+    def symbol_spec(self, symbol: str) -> dict[str, Any]:
+        """Return trading constraints for a symbol (digits, lot step, contract size)."""
+        return self._unavailable("symbol_spec")
+
     def account_equity_curve(self) -> dict[str, Any]:
         return self._unavailable("account_equity_curve")
