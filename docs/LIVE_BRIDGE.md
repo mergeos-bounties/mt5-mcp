@@ -2,8 +2,14 @@
 
 ## Overview
 
-When `MT5_MCP_MODE=live` and `MT5_MCP_BRIDGE_URL` is set, mt5-mcp delegates
-positions/history queries to an external bridge server instead of using the mock backend.
+When `MT5_MCP_MODE=live` and `MT5_MCP_BRIDGE_URL` is set, mt5-mcp probes an
+external bridge server instead of using the mock backend. The bridge is optional:
+without a reachable bridge, bridge file, or local MetaTrader 5 terminal, live mode
+reports a structured disconnected state.
+
+The current bridge contract is intentionally narrow. `mt5-mcp doctor` checks
+`GET {bridge}/health`; read and trade tools remain fail-closed or return empty stub
+data until live bridge wiring is added for the specific operation.
 
 ## Endpoints
 
@@ -66,12 +72,15 @@ Returns recent deal history.
 
 ## Offline behavior
 
-- If bridge URL returns connection error / timeout, tools return `{"ok": false, "error": "live bridge unavailable"}`
+- If bridge URL returns connection error / timeout, `mt5-mcp doctor` reports
+  `{"ok": false, "mode": "live", "connected": false, ...}`
 - CI and demo always use mock (no bridge needed)
-- Bridge is optional — without it live mode returns structured errors
+- Bridge is optional — without it live mode returns structured errors or empty
+  stub data, depending on the tool
 
 ## Safety
 
 - Never commit bridge URLs with embedded credentials
 - Use `MT5_MCP_BRIDGE_URL` env var only
 - Bridge should validate requests via magic number or API key
+- Confirm `mt5-mcp doctor` reports `connected: true` before relying on live mode
