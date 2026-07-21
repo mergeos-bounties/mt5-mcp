@@ -246,3 +246,41 @@ mt5-mcp demo
 ## License
 
 [MIT](LICENSE)
+
+## Mock vs Live Mode
+
+### Mock Mode (Development)
+
+Simulates MT5 trading data without a live connection.
+
+```bash
+export MT5_MCP_MODE=mock
+python3 main.py --mode mock
+```
+
+No prerequisites. Works offline.
+
+### Live Mode (Production)
+
+Connects to a real MT5 trading terminal.
+
+```bash
+export MT5_MCP_MODE=live
+python3 main.py --mode live
+```
+
+Requires:
+- MetaTrader 5 terminal installed and running
+- `pip install MetaTrader5`
+- Valid trading account credentials
+
+### Comparison
+
+| Feature | Mock | Live |
+|---------|------|------|
+| Needs MT5 terminal | No | Yes |
+| Real trading | No | Yes |
+| Financial risk | None | Yes |
+| Use case | Testing | Production |
+
+**⚠️ Test in mock mode before using live trading.**
