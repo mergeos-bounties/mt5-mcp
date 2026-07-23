@@ -86,7 +86,11 @@ def mt5_order_send(
     tp: float | None = None,
     comment: str = "",
 ) -> str:
-    """Open market position or place pending order."""
+    """Open market position or place pending order.
+
+    SL/TP are validated against the order side and the symbol stops level; an invalid
+    stop is rejected with retcode 10016 (TRADE_RETCODE_INVALID_STOPS) and nothing opens.
+    """
     return _j(
         get_backend().order_send(symbol, side, volume, order_type, price, sl, tp, comment)
     )
@@ -126,6 +130,12 @@ def mt5_symbol_spec(symbol: str) -> str:
 def mt5_account_equity_curve() -> str:
     """Account metrics with equity curve time series."""
     return _j(get_backend().account_equity_curve())
+
+
+@mcp.tool()
+def mt5_mock_set_quote(symbol: str, bid: float, ask: float | None = None) -> str:
+    """Move the mock market price (mock only) — triggers any SL/TP the move crosses."""
+    return _j(get_backend().set_quote(symbol, bid, ask))
 
 
 @mcp.tool()
