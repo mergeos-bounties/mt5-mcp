@@ -31,6 +31,7 @@ TOOL_NAMES = [
     "mt5_position_close",
     "mt5_order_cancel",
     "mt5_history_deals",
+    "mt5_mock_set_quote",
 ]
 
 
@@ -146,6 +147,11 @@ def call_cmd(
         ),
         "mt5_order_cancel": lambda: b.order_cancel(int(kv.get("ticket", 0))),
         "mt5_history_deals": lambda: b.history_deals(int(kv.get("limit", 20))),
+        "mt5_mock_set_quote": lambda: b.set_quote(
+            str(kv.get("symbol", "EURUSD")),
+            float(kv.get("bid", 0)),
+            float(kv["ask"]) if "ask" in kv else None,
+        ),
     }
     if name not in dispatch:
         raise typer.BadParameter(f"unknown tool {name}")

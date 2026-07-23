@@ -40,6 +40,35 @@ python -m mt5_mcp doctor
 | `mt5_positions` | Returns 2-3 sample positions |
 | `mt5_market_order` | Simulates order placement, returns ticket |
 | `mt5_deal_history` | Returns sample deal history |
+| `mt5_mock_set_quote` | Moves the mock bid/ask so stop levels can be exercised |
+
+### Stop loss / take profit in mock mode
+
+`mt5_order_send` validates SL/TP before anything is opened:
+
+* a buy needs `sl < entry < tp`, a sell needs `tp < entry < sl`;
+* both must be finite positive prices and are rounded to the symbol `digits`;
+* both must sit at least `stops_level` points away from the price the stop is checked
+  against (bid for a buy, ask for a sell) — `mt5_symbol_spec` reports that level;
+* anything else is rejected with `retcode 10016` (`TRADE_RETCODE_INVALID_STOPS`) and no
+  position or pending order is created.
+
+Once a position is open, every quote refresh checks its stops. A touched level closes the
+position **at the stop price**, books the deal with `"reason": "sl"` or `"tp"` and moves the
+balance. If one move gaps through both levels the stop loss fills — the pessimistic side,
+which is what a real server does.
+
+The mock account lives inside one process, so drive this from a single MCP session (or one
+Python snippet) rather than three separate `mt5-mcp call` invocations:
+
+```python
+from mt5_mcp.backend import mock_instance
+
+b = mock_instance()
+b.order_send("EURUSD", "buy", 1.0, "market", sl=1.08, tp=1.09)
+b.set_quote("EURUSD", 1.0795, 1.0797)   # gap through the stop loss
+b.history_deals(1)                       # reason: "sl", price 1.08, profit booked
+```
 
 ## Live Mode
 

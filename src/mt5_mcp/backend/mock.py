@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import math
 import time
 from copy import deepcopy
 from typing import Any
+
+# MT5 trade server return codes we mirror in the mock.
+RETCODE_DONE = 10009
+RETCODE_INVALID_STOPS = 10016
 
 
 class MockBackend:
@@ -36,6 +41,7 @@ class MockBackend:
                 "ask": 1.08535,
                 "last": 1.08525,
                 "spread": 20,
+                "stops_level": 20,
             },
             "GBPUSD": {
                 "symbol": "GBPUSD",
@@ -46,6 +52,7 @@ class MockBackend:
                 "ask": 1.26515,
                 "last": 1.26500,
                 "spread": 25,
+                "stops_level": 25,
             },
             "USDJPY": {
                 "symbol": "USDJPY",
@@ -56,6 +63,7 @@ class MockBackend:
                 "ask": 149.535,
                 "last": 149.520,
                 "spread": 25,
+                "stops_level": 25,
             },
             "XAUUSD": {
                 "symbol": "XAUUSD",
@@ -66,6 +74,7 @@ class MockBackend:
                 "ask": 2324.50,
                 "last": 2324.30,
                 "spread": 40,
+                "stops_level": 40,
             },
             "BTCUSD": {
                 "symbol": "BTCUSD",
@@ -76,6 +85,7 @@ class MockBackend:
                 "ask": 67550.0,
                 "last": 67525.0,
                 "spread": 5000,
+                "stops_level": 5000,
             },
         }
         self._positions: dict[int, dict[str, Any]] = {}
@@ -196,22 +206,186 @@ class MockBackend:
     def orders(self) -> list[dict[str, Any]]:
         return [deepcopy(o) for o in self._orders.values()]
 
-    def _mark_to_market(self) -> None:
+    def _pip_value(self, symbol: str, volume: float, price: float) -> float:
+        if symbol == "BTCUSD":
+            return volume
+        if symbol == "XAUUSD":
+            return volume * 100
+        if symbol == "USDJPY":
+            return volume * 1000 / max(price, 1)
+        return volume * 100000
+
+    def _profit_at(self, position: dict[str, Any], price: float, volume: float | None = None) -> float:
+        """Profit of (part of) a position if it were closed at `price`."""
+        vol = float(position["volume"]) if volume is None else float(volume)
+        direction = 1 if position["side"] == "buy" else -1
+        pip_value = self._pip_value(position["symbol"], vol, price)
+        return round(direction * (price - position["price_open"]) * pip_value, 2)
+
+    def _close_price(self, position: dict[str, Any]) -> float:
+        q = self._symbols[position["symbol"]]
+        return q["bid"] if position["side"] == "buy" else q["ask"]
+
+    def _reprice(self) -> None:
         for p in self._positions.values():
-            q = self._symbols[p["symbol"]]
-            price = q["bid"] if p["side"] == "buy" else q["ask"]
-            if p["symbol"] == "BTCUSD":
-                pip_value = p["volume"]
-            elif p["symbol"] == "XAUUSD":
-                pip_value = p["volume"] * 100
-            elif p["symbol"] == "USDJPY":
-                pip_value = p["volume"] * 1000 / max(price, 1)
-            else:
-                pip_value = p["volume"] * 100000
-            direction = 1 if p["side"] == "buy" else -1
-            p["profit"] = round(direction * (price - p["price_open"]) * pip_value, 2)
+            price = self._close_price(p)
+            p["profit"] = self._profit_at(p, price)
             p["price_current"] = price
+
+    def _apply_stops(self) -> list[dict[str, Any]]:
+        """Close positions whose SL or TP is touched by the current quote.
+
+        A stop fills at its own price, not at the market price, which is what makes
+        the booked profit deterministic. If a gap crosses both levels in one move the
+        stop loss wins — the pessimistic side, same as a real broker.
+        """
+        triggered: list[tuple[int, str, float]] = []
+        for ticket, p in self._positions.items():
+            price = self._close_price(p)
+            sl, tp = p.get("sl"), p.get("tp")
+            if p["side"] == "buy":
+                hit_sl = sl is not None and price <= sl
+                hit_tp = tp is not None and price >= tp
+            else:
+                hit_sl = sl is not None and price >= sl
+                hit_tp = tp is not None and price <= tp
+            if hit_sl:
+                triggered.append((ticket, "sl", float(sl)))
+            elif hit_tp:
+                triggered.append((ticket, "tp", float(tp)))
+        deals = []
+        for ticket, reason, price in triggered:
+            deals.append(self._book_close(self._positions[ticket], None, price, reason))
+        return deals
+
+    def _mark_to_market(self) -> None:
+        self._reprice()
+        if self._apply_stops():
+            self._reprice()
         self._recalc()
+
+    def _book_close(
+        self,
+        position: dict[str, Any],
+        volume: float | None,
+        price: float,
+        reason: str,
+    ) -> dict[str, Any]:
+        """Close (part of) a position at `price`, book the deal and update balance."""
+        close_vol = float(position["volume"]) if volume is None else float(volume)
+        profit = self._profit_at(position, price, close_vol)
+        self._balance = round(self._balance + profit, 2)
+        deal = {
+            "ticket": self._next_ticket(),
+            "position_id": position["ticket"],
+            "symbol": position["symbol"],
+            "side": "sell" if position["side"] == "buy" else "buy",
+            "volume": close_vol,
+            "price": price,
+            "profit": profit,
+            "entry": "out",
+            "reason": reason,
+            "time": time.time(),
+            "comment": position.get("comment", ""),
+        }
+        self._deals.insert(0, deal)
+        if abs(close_vol - float(position["volume"])) < 1e-9:
+            del self._positions[int(position["ticket"])]
+        else:
+            ratio = close_vol / float(position["volume"])
+            position["volume"] = round(float(position["volume"]) - close_vol, 2)
+            position["margin"] = round(float(position["margin"]) * (1 - ratio), 2)
+        self._recalc()
+        return deal
+
+    def _normalise_stops(
+        self,
+        symbol: str,
+        side: str,
+        ref_price: float,
+        sl: float | None,
+        tp: float | None,
+        trigger_price: float | None = None,
+    ) -> dict[str, Any]:
+        """Validate SL/TP against side, reference price and the symbol stops level.
+
+        `ref_price` is the price the position opens at, `trigger_price` the price the
+        stops are checked against later (bid for a buy, ask for a sell) — that is the
+        one the stops level distance is measured from, like MT5 does.
+
+        Returns {"ok": True, "sl": ..., "tp": ...} with prices rounded to symbol digits,
+        or {"ok": False, "retcode": 10016, "error": ...} the caller can return as-is.
+        """
+        s = self._symbols[symbol]
+        digits = int(s["digits"])
+        point = float(s["point"])
+        min_distance = float(s.get("stops_level", 0)) * point
+        check_from = ref_price if trigger_price is None else trigger_price
+        out: dict[str, Any] = {"ok": True, "sl": None, "tp": None}
+        for label, raw in (("sl", sl), ("tp", tp)):
+            if raw is None:
+                continue
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                return self._invalid_stops(f"{label} must be a number, got {raw!r}")
+            if not math.isfinite(value) or value <= 0:
+                return self._invalid_stops(f"{label} must be a positive finite price, got {raw!r}")
+            value = round(value, digits)
+            if label == "sl":
+                wrong_side = value >= ref_price if side == "buy" else value <= ref_price
+                expected = "below" if side == "buy" else "above"
+            else:
+                wrong_side = value <= ref_price if side == "buy" else value >= ref_price
+                expected = "above" if side == "buy" else "below"
+            if wrong_side:
+                return self._invalid_stops(
+                    f"{label} {value} must be {expected} the {side} price {ref_price}"
+                )
+            if abs(value - check_from) < min_distance - 1e-12:
+                return self._invalid_stops(
+                    f"{label} {value} is closer than the {symbol} stops level "
+                    f"({s.get('stops_level', 0)} points = {round(min_distance, digits)}) "
+                    f"from price {check_from}"
+                )
+            out[label] = value
+        return out
+
+    @staticmethod
+    def _invalid_stops(message: str) -> dict[str, Any]:
+        return {"ok": False, "retcode": RETCODE_INVALID_STOPS, "error": message}
+
+    def set_quote(self, symbol: str, bid: float, ask: float | None = None) -> dict[str, Any]:
+        """Move the mock market (mock only) — lets stops be exercised without a terminal."""
+        sym = symbol.upper()
+        s = self._symbols.get(sym)
+        if not s:
+            return {"ok": False, "error": f"unknown symbol {symbol}"}
+        try:
+            new_bid = float(bid)
+            new_ask = float(ask) if ask is not None else new_bid + s["point"] * s["spread"]
+        except (TypeError, ValueError):
+            return {"ok": False, "error": "bid/ask must be numbers"}
+        if not (math.isfinite(new_bid) and math.isfinite(new_ask)) or new_bid <= 0 or new_ask <= 0:
+            return {"ok": False, "error": "bid/ask must be positive finite prices"}
+        if new_ask < new_bid:
+            return {"ok": False, "error": "ask must be >= bid"}
+        digits = int(s["digits"])
+        s["bid"] = round(new_bid, digits)
+        s["ask"] = round(new_ask, digits)
+        s["last"] = round((s["bid"] + s["ask"]) / 2, digits)
+        s["spread"] = round((s["ask"] - s["bid"]) / s["point"])
+        closed = self._apply_stops()
+        self._reprice()
+        self._recalc()
+        return {
+            "ok": True,
+            "symbol": sym,
+            "bid": s["bid"],
+            "ask": s["ask"],
+            "spread": s["spread"],
+            "closed_by_stops": closed,
+        }
 
     def order_send(
         self,
@@ -234,9 +408,16 @@ class MockBackend:
             return {"ok": False, "error": "volume must be > 0"}
         ot = (order_type or "market").strip().lower()
         q = self._symbols[sym]
-        ticket = self._next_ticket()
         if ot == "market":
             open_price = q["ask"] if side_l == "buy" else q["bid"]
+            close_side_price = q["bid"] if side_l == "buy" else q["ask"]
+            stops = self._normalise_stops(
+                sym, side_l, open_price, sl, tp, trigger_price=close_side_price
+            )
+            if not stops["ok"]:
+                return stops
+            sl, tp = stops["sl"], stops["tp"]
+            ticket = self._next_ticket()
             margin = round(volume * 500 / max(1, self._leverage / 50), 2)
             pos = {
                 "ticket": ticket,
@@ -267,11 +448,23 @@ class MockBackend:
             }
             self._deals.insert(0, deal)
             self._mark_to_market()
-            return {"ok": True, "retcode": 10009, "ticket": ticket, "position": deepcopy(pos)}
+            still_open = self._positions.get(ticket)
+            return {
+                "ok": True,
+                "retcode": RETCODE_DONE,
+                "ticket": ticket,
+                "position": deepcopy(still_open) if still_open else None,
+                "closed_by_stops": None if still_open else self._deals[0],
+            }
         if price is None:
             return {"ok": False, "error": "pending order requires price"}
         if ot not in {"buy_limit", "sell_limit", "buy_stop", "sell_stop"}:
             return {"ok": False, "error": f"unsupported order_type {order_type}"}
+        stops = self._normalise_stops(sym, side_l, float(price), sl, tp)
+        if not stops["ok"]:
+            return stops
+        sl, tp = stops["sl"], stops["tp"]
+        ticket = self._next_ticket()
         order = {
             "ticket": ticket,
             "symbol": sym,
@@ -285,40 +478,30 @@ class MockBackend:
             "time_setup": time.time(),
         }
         self._orders[ticket] = order
-        return {"ok": True, "retcode": 10009, "ticket": ticket, "order": deepcopy(order)}
+        return {"ok": True, "retcode": RETCODE_DONE, "ticket": ticket, "order": deepcopy(order)}
 
     def position_close(self, ticket: int, volume: float | None = None) -> dict[str, Any]:
         p = self._positions.get(int(ticket))
         if not p:
             return {"ok": False, "error": f"position {ticket} not found"}
         self._mark_to_market()
+        p = self._positions.get(int(ticket))
+        if not p:
+            # A stop was touched while the close was in flight — report the stop deal.
+            stop_deal = next(
+                (d for d in self._deals if d.get("position_id") == int(ticket)), None
+            )
+            return {
+                "ok": False,
+                "error": f"position {ticket} already closed by {stop_deal.get('reason')}"
+                if stop_deal and stop_deal.get("reason")
+                else f"position {ticket} not found",
+                "deal": stop_deal,
+            }
         close_vol = float(volume) if volume is not None else float(p["volume"])
         if close_vol <= 0 or close_vol > p["volume"] + 1e-9:
             return {"ok": False, "error": "invalid close volume"}
-        q = self._symbols[p["symbol"]]
-        close_price = q["bid"] if p["side"] == "buy" else q["ask"]
-        ratio = close_vol / p["volume"]
-        profit = round(float(p["profit"]) * ratio, 2)
-        self._balance = round(self._balance + profit, 2)
-        deal = {
-            "ticket": self._next_ticket(),
-            "position_id": p["ticket"],
-            "symbol": p["symbol"],
-            "side": "sell" if p["side"] == "buy" else "buy",
-            "volume": close_vol,
-            "price": close_price,
-            "profit": profit,
-            "entry": "out",
-            "time": time.time(),
-            "comment": p.get("comment", ""),
-        }
-        self._deals.insert(0, deal)
-        if abs(close_vol - p["volume"]) < 1e-9:
-            del self._positions[int(ticket)]
-        else:
-            p["volume"] = round(p["volume"] - close_vol, 2)
-            p["margin"] = round(float(p["margin"]) * (1 - ratio), 2)
-        self._recalc()
+        deal = self._book_close(p, close_vol, self._close_price(p), "manual")
         return {"ok": True, "deal": deal, "balance": self._balance}
 
     def order_cancel(self, ticket: int) -> dict[str, Any]:
@@ -344,6 +527,8 @@ class MockBackend:
             "digits": s.get("digits", 5),
             "lot_step": 0.01,
             "contract_size": s.get("trade_contract_size", 100000),
+            "point": s.get("point"),
+            "stops_level": s.get("stops_level", 0),
         }
 
     def history_deals_paginated(self, limit: int = 20, offset: int = 0) -> dict[str, Any]:

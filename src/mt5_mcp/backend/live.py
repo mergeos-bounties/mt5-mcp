@@ -76,6 +76,9 @@ class LiveBackend:
     def seed_demo(self) -> dict[str, Any]:
         return {"ok": False, "error": "seed_demo is mock-only"}
 
+    def set_quote(self, symbol: str, bid: float, ask: float | None = None) -> dict[str, Any]:
+        return {"ok": False, "error": "set_quote is mock-only — live prices come from the terminal"}
+
     def _unavailable(self, op: str) -> dict[str, Any]:
         d = self.doctor()
         if d.get("connected"):

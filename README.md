@@ -157,9 +157,10 @@ mt5-mcp serve
 || `mt5_quote` | Bid/ask / last |
 | `mt5_positions` | **Open positions** (filled market orders) |
 | `mt5_orders` | **Pending orders** (limit/stop, not yet filled) |
-| `mt5_order_send` | Market/pending |
+| `mt5_order_send` | Market/pending, with validated SL/TP |
 | `mt5_position_close` | Close position by ticket |
 | `mt5_history_deals` | Deal history |
+| `mt5_mock_set_quote` | Move the mock price (mock only) — fires any SL/TP it crosses |
 | `mt5://account` (resource) | Account + positions snapshot |
 
 ---
