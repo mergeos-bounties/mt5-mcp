@@ -123,6 +123,26 @@ def mt5_symbol_spec(symbol: str) -> str:
 
 
 @mcp.tool()
+def mt5_place_market_order(
+    symbol: str,
+    side: str,
+    volume: float,
+    sl: float,
+    tp: float,
+    comment: str = "",
+) -> str:
+    """Open a market position with validated stop-loss and take-profit.
+
+    SL and TP are validated against trade direction before execution:
+    - Buy: SL must be below entry price, TP must be above
+    - Sell: SL must be above entry price, TP must be below
+
+    Returns retcode 10016 if SL/TP violate direction rules.
+    """
+    return _j(get_backend().place_market_order(symbol, side, volume, sl, tp, comment))
+
+
+@mcp.tool()
 def mt5_account_equity_curve() -> str:
     """Account metrics with equity curve time series."""
     return _j(get_backend().account_equity_curve())

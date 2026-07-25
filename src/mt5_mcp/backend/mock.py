@@ -362,8 +362,149 @@ class MockBackend:
             "deals": page,
         }
 
+    def _check_stop_out(self) -> list[dict[str, Any]]:
+        """Close positions that have been stopped out (price touched SL or TP).
+
+        Called by account_equity_curve() and positions() so that the user
+        always sees current reality after the latest price update.
+
+        Returns a list of stop-out deals that were just created.
+        """
+        closed_tickets: list[int] = []
+        new_deals: list[dict[str, Any]] = []
+
+        for ticket, p in list(self._positions.items()):
+            if p.get("closed"):
+                closed_tickets.append(ticket)
+                continue
+            q = self._symbols[p["symbol"]]
+            current = q["bid"] if p["side"] == "buy" else q["ask"]
+            sl = p.get("sl")
+            tp = p.get("tp")
+            reason: str | None = None
+            close_price: float | None = None
+
+            if sl is not None and p["side"] == "buy" and current <= sl:
+                reason = "stop_loss"
+                close_price = sl
+            elif sl is not None and p["side"] == "sell" and current >= sl:
+                reason = "stop_loss"
+                close_price = sl
+            elif tp is not None and p["side"] == "buy" and current >= tp:
+                reason = "take_profit"
+                close_price = tp
+            elif tp is not None and p["side"] == "sell" and current <= tp:
+                reason = "take_profit"
+                close_price = tp
+
+            if reason and close_price is not None:
+                p["closed"] = True
+                p["close_price"] = close_price
+                p["close_reason"] = reason
+                closed_tickets.append(ticket)  # also collect for deletion
+                # compute profit at close price
+                if p["symbol"] == "BTCUSD":
+                    pip_value = float(p["volume"])
+                elif p["symbol"] == "XAUUSD":
+                    pip_value = float(p["volume"]) * 100
+                elif p["symbol"] == "USDJPY":
+                    pip_value = float(p["volume"]) * 1000 / max(close_price, 1)
+                else:
+                    pip_value = float(p["volume"]) * 100000
+                direction = 1 if p["side"] == "buy" else -1
+                profit = round(direction * (close_price - float(p["price_open"])) * pip_value, 2)
+                self._balance = round(self._balance + profit, 2)
+                deal = {
+                    "ticket": self._next_ticket(),
+                    "position_id": ticket,
+                    "symbol": p["symbol"],
+                    "side": "sell" if p["side"] == "buy" else "buy",
+                    "volume": float(p["volume"]),
+                    "price": close_price,
+                    "profit": profit,
+                    "entry": "out",
+                    "time": time.time(),
+                    "comment": f"{reason}",
+                    "close_reason": reason,
+                }
+                self._deals.insert(0, deal)
+                new_deals.append(deal)
+
+        for ticket in closed_tickets:
+            del self._positions[ticket]
+        self._recalc()
+        return new_deals
+
+    def place_market_order(
+        self,
+        symbol: str,
+        side: str,
+        volume: float,
+        sl: float,
+        tp: float,
+        comment: str = "",
+    ) -> dict[str, Any]:
+        """Place a market order with validated SL and TP.
+
+        Validation rules (returns retcode 10016 on failure):
+        - Buy: SL must be < entry, TP must be > entry
+        - Sell: SL must be > entry, TP must be < entry
+        - SL and TP prices are rounded to symbol digits
+        """
+        sym = symbol.upper()
+        if sym not in self._symbols:
+            return {"ok": False, "error": f"unknown symbol {symbol}", "retcode": 10013}
+        side_l = side.strip().lower()
+        if side_l not in {"buy", "sell"}:
+            return {"ok": False, "error": "side must be buy or sell", "retcode": 10016}
+        if volume <= 0:
+            return {"ok": False, "error": "volume must be > 0", "retcode": 10016}
+        q = self._symbols[sym]
+        entry = q["ask"] if side_l == "buy" else q["bid"]
+        digits = q["digits"]
+        sl_r = round(sl, digits)
+        tp_r = round(tp, digits)
+        # Direction validation
+        if side_l == "buy":
+            if sl_r >= entry:
+                return {
+                    "ok": False,
+                    "error": f"buy SL {sl_r} must be below entry {entry}",
+                    "retcode": 10016,
+                    "entry": entry,
+                }
+            if tp_r <= entry:
+                return {
+                    "ok": False,
+                    "error": f"buy TP {tp_r} must be above entry {entry}",
+                    "retcode": 10016,
+                    "entry": entry,
+                }
+        else:  # sell
+            if sl_r <= entry:
+                return {
+                    "ok": False,
+                    "error": f"sell SL {sl_r} must be above entry {entry}",
+                    "retcode": 10016,
+                    "entry": entry,
+                }
+            if tp_r >= entry:
+                return {
+                    "ok": False,
+                    "error": f"sell TP {tp_r} must be below entry {entry}",
+                    "retcode": 10016,
+                    "entry": entry,
+                }
+        # Place the order via order_send (which stores sl/tp)
+        return self.order_send(sym, side_l, volume, "market", sl=sl_r, tp=tp_r, comment=comment)
+
     def account_equity_curve(self) -> dict[str, Any]:
-        """Account metrics with equity curve time series."""
+        """Account metrics with equity curve time series.
+
+        Checks for stop-outs on every call so positions with SL/TP that
+        have been reached are closed before returning metrics.
+        """
+        self._check_stop_out()
         self._recalc()
         now = time.time()
         if not hasattr(self, '_equity_snapshots'):
