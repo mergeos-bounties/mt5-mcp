@@ -120,5 +120,9 @@ class LiveBackend:
         """Return trading constraints for a symbol (digits, lot step, contract size)."""
         return self._unavailable("symbol_spec")
 
+    def place_market_order(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        """Place a market order with validated SL/TP (live: delegated to bridge)."""
+        return self._unavailable("place_market_order")
+
     def account_equity_curve(self) -> dict[str, Any]:
         return self._unavailable("account_equity_curve")

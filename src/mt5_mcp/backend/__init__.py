@@ -22,3 +22,7 @@ def switch_mode(mode: str) -> dict[str, Any]:
 
 def mock_instance() -> MockBackend:
     return _mock
+
+
+def live_instance() -> LiveBackend:
+    return _live
