@@ -33,3 +33,11 @@ def test_pending_cancel():
 def test_get_backend_mock():
     set_mode("mock")
     assert get_backend().name == "mock"
+
+def test_symbol_spec_trading_constraints():
+    b = MockBackend()
+    s = b.symbol_spec("EURUSD")
+    assert s["ok"] is True
+    assert s["digits"] == 5
+    assert s["volume_min"] == 0.01
+    assert s["volume_max"] == 100.0
