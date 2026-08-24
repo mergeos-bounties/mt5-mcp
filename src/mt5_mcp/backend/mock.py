@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from copy import deepcopy
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class MockBackend:
@@ -197,7 +200,7 @@ class MockBackend:
         return [deepcopy(o) for o in self._orders.values()]
 
     def _mark_to_market(self) -> None:
-        for p in self._positions.values():
+        for p in list(self._positions.values()):
             q = self._symbols[p["symbol"]]
             price = q["bid"] if p["side"] == "buy" else q["ask"]
             if p["symbol"] == "BTCUSD":
@@ -208,6 +211,42 @@ class MockBackend:
                 pip_value = p["volume"] * 1000 / max(price, 1)
             else:
                 pip_value = p["volume"] * 100000
+
+            # --- SL/TP trigger check (issue #20) ---
+            sl_hit = p.get("sl") is not None and (
+                (p["side"] == "buy" and price <= p["sl"])
+                or (p["side"] == "sell" and price >= p["sl"])
+            )
+            tp_hit = p.get("tp") is not None and (
+                (p["side"] == "buy" and price >= p["tp"])
+                or (p["side"] == "sell" and price <= p["tp"])
+            )
+            if sl_hit or tp_hit:
+                # Force-close at SL/TP level
+                exit_price = p["sl"] if sl_hit else p["tp"]
+                direction = 1 if p["side"] == "buy" else -1
+                profit = round(direction * (exit_price - p["price_open"]) * pip_value, 2)
+                self._balance += profit
+                deal = {
+                    "ticket": self._next_ticket(),
+                    "position_id": p["ticket"],
+                    "symbol": p["symbol"],
+                    "side": "out",
+                    "volume": p["volume"],
+                    "price": exit_price,
+                    "profit": profit,
+                    "entry": "out",
+                    "time": time.time(),
+                    "comment": f"{'SL' if sl_hit else 'TP'} hit",
+                }
+                self._deals.insert(0, deal)
+                del self._positions[p["ticket"]]
+                logger.info(
+                    "Position %s auto-closed by %s at %s (profit %.2f)",
+                    p["ticket"], "SL" if sl_hit else "TP", exit_price, profit,
+                )
+                continue
+
             direction = 1 if p["side"] == "buy" else -1
             p["profit"] = round(direction * (price - p["price_open"]) * pip_value, 2)
             p["price_current"] = price
@@ -232,11 +271,29 @@ class MockBackend:
             return {"ok": False, "error": "side must be buy or sell"}
         if volume <= 0:
             return {"ok": False, "error": "volume must be > 0"}
+        # --- SL/TP direction validation (issue #20) ---
+        if sl is not None and sl <= 0:
+            return {"ok": False, "error": "stop-loss must be positive"}
+        if tp is not None and tp <= 0:
+            return {"ok": False, "error": "take-profit must be positive"}
+        if sl is not None and tp is not None and side_l in ("buy", "sell"):
+            open_ref = self._symbols[sym]["ask"]  # provisional; re-checked below
         ot = (order_type or "market").strip().lower()
         q = self._symbols[sym]
         ticket = self._next_ticket()
         if ot == "market":
             open_price = q["ask"] if side_l == "buy" else q["bid"]
+            # Direction-aware SL/TP validation against actual open price
+            if sl is not None:
+                if side_l == "buy" and sl >= open_price:
+                    return {"ok": False, "error": f"buy SL ({sl}) must be below entry price ({open_price})"}
+                if side_l == "sell" and sl <= open_price:
+                    return {"ok": False, "error": f"sell SL ({sl}) must be above entry price ({open_price})"}
+            if tp is not None:
+                if side_l == "buy" and tp <= open_price:
+                    return {"ok": False, "error": f"buy TP ({tp}) must be above entry price ({open_price})"}
+                if side_l == "sell" and tp >= open_price:
+                    return {"ok": False, "error": f"sell TP ({tp}) must be below entry price ({open_price})"}
             margin = round(volume * 500 / max(1, self._leverage / 50), 2)
             pos = {
                 "ticket": ticket,
