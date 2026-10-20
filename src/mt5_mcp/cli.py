@@ -98,10 +98,45 @@ def tools_list() -> None:
 
 
 @app.command("symbol_spec")
-def symbol_spec_cmd(symbol: str = typer.Argument(..., help="Symbol e.g. EURUSD")) -> None:
+def symbol_spec_cmd(
+    symbol: str = typer.Argument(..., help="Symbol e.g. EURUSD"),
+    table: bool = typer.Option(True, "--table/--no-table", help="Rich table output"),
+) -> None:
     """Return trading constraints for a symbol (digits, lot_step, contract_size)."""
     b = get_backend()
-    rprint(b.symbol_spec(symbol))
+    result = b.symbol_spec(symbol)
+    if table and result.get("ok"):
+        t = Table(title=f"Symbol Spec: {result['symbol']}")
+        t.add_column("Property")
+        t.add_column("Value")
+        for k, v in result.items():
+            if k != "ok":
+                t.add_row(k, str(v))
+        console.print(t)
+    else:
+        rprint(result)
+
+
+@app.command("symbol_specs")
+def symbol_specs_cmd(table: bool = typer.Option(True, "--table/--no-table", help="Rich table output")) -> None:
+    """Return trading constraints for all symbols."""
+    b = get_backend()
+    symbols = b.symbols()
+    results = [b.symbol_spec(s["symbol"]) for s in symbols]
+    if table:
+        t = Table(title="All Symbol Specs")
+        t.add_column("Symbol")
+        t.add_column("Digits")
+        t.add_column("Lot Step")
+        t.add_column("Contract Size")
+        for r in results:
+            if r.get("ok"):
+                t.add_row(r["symbol"], str(r["digits"]), str(r["lot_step"]), str(r["contract_size"]))
+            else:
+                t.add_row(r.get("symbol", "?"), "N/A", "N/A", "N/A")
+        console.print(t)
+    else:
+        rprint(results)
 
 
 @app.command("call")
