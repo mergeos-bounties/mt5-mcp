@@ -104,6 +104,16 @@ def symbol_spec_cmd(symbol: str = typer.Argument(..., help="Symbol e.g. EURUSD")
     rprint(b.symbol_spec(symbol))
 
 
+@app.command("bridge")
+def bridge_cmd() -> None:
+    """Check live bridge connectivity (doctor for live mode)."""
+    from mt5_mcp.config import set_mode
+    from mt5_mcp.backend import get_backend
+    set_mode("live")
+    b = get_backend()
+    rprint(b.doctor())
+
+
 @app.command("call")
 def call_cmd(
     tool: str = typer.Argument(..., help="Short name e.g. account or mt5_account"),
