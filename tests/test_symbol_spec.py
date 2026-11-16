@@ -1,46 +1,37 @@
-"""Tests for symbol_spec tool."""
+import pytest
+from mt5_mcp.backend.mock import MockBackend
 
-from mt5_mcp.backend import mock_instance, set_mode
+@pytest.mark.asyncio
+async def test_mock_symbol_info_eurusd():
+    backend = MockBackend()
+    info = await backend.get_symbol_info("EURUSD")
+    
+    assert info is not None
+    assert info["symbol"] == "EURUSD"
+    assert info["digits"] == 5
+    assert info["lot_step"] == 0.01
+    assert info["min_lot"] == 0.01
 
+@pytest.mark.asyncio
+async def test_mock_symbol_info_btcusd():
+    backend = MockBackend()
+    info = await backend.get_symbol_info("BTCUSD")
+    
+    assert info is not None
+    assert info["digits"] == 2
+    assert info["lot_step"] == 0.1
 
-def test_symbol_spec():
-    set_mode("mock")
-    bk = mock_instance()
-    bk.seed_demo()
+@pytest.mark.asyncio
+async def test_mock_symbol_not_found():
+    backend = MockBackend()
+    info = await backend.get_symbol_info("NONEXISTENT")
     
-    # Test EURUSD
-    result = bk.symbol_spec("EURUSD")
-    assert result["ok"] is True
-    assert result["symbol"] == "EURUSD"
-    assert result["digits"] == 5
-    assert result["lot_step"] == 0.01
-    assert result["contract_size"] == 100000
-    
-    # Test GBPUSD
-    result = bk.symbol_spec("GBPUSD")
-    assert result["ok"] is True
-    assert result["symbol"] == "GBPUSD"
-    assert result["digits"] == 5
-    assert result["lot_step"] == 0.01
-    assert result["contract_size"] == 100000
-    
-    # Test unknown symbol
-    result = bk.symbol_spec("UNKNOWN")
-    assert result["ok"] is False
-    assert "unknown symbol" in result["error"]
+    assert info is None
 
-
-def test_symbol_spec_case_insensitive():
-    set_mode("mock")
-    bk = mock_instance()
-    bk.seed_demo()
+@pytest.mark.asyncio
+async def test_mock_symbol_case_insensitive():
+    backend = MockBackend()
+    info = await backend.get_symbol_info("eurusd")
     
-    # Test lowercase
-    result = bk.symbol_spec("eurusd")
-    assert result["ok"] is True
-    assert result["symbol"] == "EURUSD"
-    
-    # Test mixed case
-    result = bk.symbol_spec("GbpUsd")
-    assert result["ok"] is True
-    assert result["symbol"] == "GBPUSD"
+    assert info is not None
+    assert info["symbol"] == "EURUSD"

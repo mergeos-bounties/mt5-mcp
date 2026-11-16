@@ -1,31 +1,24 @@
-from __future__ import annotations
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional
 
-from typing import Any, Protocol
+class BaseBackend(ABC):
+    @abstractmethod
+    async def get_account_info(self) -> Dict[str, Any]:
+        pass
 
+    @abstractmethod
+    async def get_symbol_info(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """Return trading constraints for a symbol (digits, lot_step, etc.)"""
+        pass
 
-class MtBackend(Protocol):
-    name: str
+    @abstractmethod
+    async def get_positions(self) -> List[Dict[str, Any]]:
+        pass
 
-    def doctor(self) -> dict[str, Any]: ...
-    def seed_demo(self) -> dict[str, Any]: ...
-    def account(self) -> dict[str, Any]: ...
-    def symbols(self) -> list[dict[str, Any]]: ...
-    def quote(self, symbol: str) -> dict[str, Any]: ...
-    def positions(self) -> list[dict[str, Any]]: ...
-    def orders(self) -> list[dict[str, Any]]: ...
-    def order_send(
-        self,
-        symbol: str,
-        side: str,
-        volume: float,
-        order_type: str = "market",
-        price: float | None = None,
-        sl: float | None = None,
-        tp: float | None = None,
-        comment: str = "",
-    ) -> dict[str, Any]: ...
-    def position_close(self, ticket: int, volume: float | None = None) -> dict[str, Any]: ...
-    def order_cancel(self, ticket: int) -> dict[str, Any]: ...
-    def history_deals(self, limit: int = 20) -> list[dict[str, Any]]: ...
-    def history_deals_paginated(self, limit: int = 20, offset: int = 0) -> dict[str, Any]: ...
-    def account_equity_curve(self) -> dict[str, Any]: ...
+    @abstractmethod
+    async def get_orders(self) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    async def get_history(self, days: int) -> List[Dict[str, Any]]:
+        pass
